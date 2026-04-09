@@ -1,2 +1,1 @@
-// index.js
-console.log("Hello CI/CD");
+console.log("CI/CD is working 🚀");
