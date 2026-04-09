@@ -1,0 +1,38 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run app
+        run: node index.js
+
+      - name: Run tests
+        run: npm test
+      - name: Deploy to local production
+        run: |
+         mkdir -p production
+         cp -r * production/
+         on:
+          push:
+            branches: [ "main", "dev" ]
+      - name: Build
+        run: npm run build
+        env:
+          NODE_ENV: production
