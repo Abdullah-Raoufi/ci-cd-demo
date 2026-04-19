@@ -1,0 +1,92 @@
+name: Laravel + Next.js CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: backend
+          POSTGRES_USER: argpc
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ==================== BACKEND (Laravel) ====================
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring, xml, curl, zip, bcmath
+          coverage: none
+
+      - name: Install Composer dependencies
+        working-directory: ./backend
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Copy .env
+        working-directory: ./backend
+        run: cp .env.example .env
+
+      - name: Generate Laravel key
+        working-directory: ./backend
+        run: php artisan key:generate
+
+      - name: Run Laravel Migrations
+        working-directory: ./backend
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: backend
+          DB_USERNAME: argpc
+          DB_PASSWORD: password
+        run: php artisan migrate --force
+
+      - name: Run Pest Tests
+        working-directory: ./backend
+        run: ./vendor/bin/pest
+
+      # ==================== FRONTEND (Next.js) ====================
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Next.js dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Build Next.js
+        working-directory: ./frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000/api
+
+      # ==================== SECURITY SCAN ====================
+      - name: Laravel Security Check
+        working-directory: ./backend
+        run: composer audit
