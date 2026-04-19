@@ -3,16 +3,29 @@ version: '3.8'
 services:
   backend:
     build: ./backend
+    restart: unless-stopped
+    env_file: ./backend/.env
     ports:
       - "8000:8000"
-    environment:
-      - APP_ENV=local
-    volumes:
-      - ./backend:/var/www/html
+    depends_on:
+      - db
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     ports:
       - "3000:3000"
+    env_file: ./frontend/.env.local
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+      POSTGRES_DB: backend
+      POSTGRES_USER: argpc
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
